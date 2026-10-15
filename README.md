@@ -25,6 +25,7 @@ Chorus watches whatever media player is running on your system and shows synced 
 - Synced lyrics scroll and highlight the current line as the song plays
 - Click any line to seek directly to it
 - Blurred cover art as a live background
+- Fetches lyrics from LRCLIB by default, with lrcmux available as an alternative
 
 ## Recommended players
 

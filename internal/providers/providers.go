@@ -5,11 +5,13 @@ import (
 	"net/http"
 
 	"github.com/f1nniboy/chorus/internal/lyrics"
+	"github.com/f1nniboy/chorus/internal/providers/lrclib"
 	"github.com/f1nniboy/chorus/internal/providers/lrcmux"
 )
 
 // fresh instance per call, New runs again whenever settings change
 var factories = []func() lyrics.Provider{
+	func() lyrics.Provider { return &lrclib.Provider{} },
 	func() lyrics.Provider { return &lrcmux.Provider{} },
 }
 
