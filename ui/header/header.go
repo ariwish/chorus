@@ -25,6 +25,7 @@ func New(artResolver *art.Resolver) *Header {
 	bar.PackStart(p)
 
 	menu := gio.NewMenu()
+	menu.Append(locale.Get("Refetch Lyrics"), "app.refetch-lyrics")
 	menu.Append(locale.Get("Preferences"), "app.preferences")
 	menu.Append(locale.Get("About"), "app.about")
 

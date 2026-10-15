@@ -86,6 +86,13 @@ func main() {
 			log.Fatal(err)
 		}
 
+		refetchAction := gio.NewSimpleAction("refetch-lyrics", nil)
+		refetchAction.SetEnabled(false)
+		refetchAction.ConnectActivate(func(_ *glib.Variant) {
+			controller.RefetchLyrics()
+		})
+		app.AddAction(refetchAction)
+
 		prefs := settings.New(cfg)
 		preferencesAction := gio.NewSimpleAction("preferences", nil)
 		preferencesAction.ConnectActivate(func(_ *glib.Variant) {
@@ -112,6 +119,7 @@ func main() {
 				case pb := <-mgr.Playback():
 					glib.IdleAdd(func() {
 						win.Header.Picker.SetCurrent(pb.Player.BusName)
+						refetchAction.SetEnabled(!pb.IsIdle())
 
 						if pb.IsIdle() {
 							controller.Idle()

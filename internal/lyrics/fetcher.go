@@ -26,6 +26,15 @@ func (f *Fetcher) Get(ctx context.Context, q TrackQuery) (Result, error) {
 		}
 	}
 
+	return f.fetchAndCache(ctx, q, key)
+}
+
+func (f *Fetcher) Refetch(ctx context.Context, q TrackQuery) (Result, error) {
+	key := cache.Key(f.provider.ID(), q.Artist, q.Title, q.Album)
+	return f.fetchAndCache(ctx, q, key)
+}
+
+func (f *Fetcher) fetchAndCache(ctx context.Context, q TrackQuery, key string) (Result, error) {
 	res, err := f.provider.Fetch(ctx, q)
 	if err != nil {
 		return Result{}, err
