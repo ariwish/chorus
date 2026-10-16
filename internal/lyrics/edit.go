@@ -11,6 +11,22 @@ import (
 
 const maxEditedTextSize = 1 << 20
 
+type EditError struct {
+	Line int
+	Err  error
+}
+
+func (e *EditError) Error() string {
+	if e.Line > 0 {
+		return fmt.Sprintf("line %d: %v", e.Line, e.Err)
+	}
+	return e.Err.Error()
+}
+
+func (e *EditError) Unwrap() error {
+	return e.Err
+}
+
 func TextForEdit(result Result) (string, error) {
 	if result.Instrumental || len(result.Lines) == 0 {
 		return "", fmt.Errorf("lyrics: no editable lyrics")
@@ -24,10 +40,10 @@ func TextForEdit(result Result) (string, error) {
 		}
 		if result.Level == LevelLine {
 			if line.Start < 0 {
-				return "", fmt.Errorf("lyrics: line %d has a negative timestamp", i+1)
+				return "", editLineError(i+1, "lyrics: negative timestamp")
 			}
 			if strings.ContainsAny(line.Text, "\r\n") {
-				return "", fmt.Errorf("lyrics: synced line %d contains a line break", i+1)
+				return "", editLineError(i+1, "lyrics: synced line contains a line break")
 			}
 			minutes := int64(line.Start / time.Minute)
 			seconds := int64(line.Start/time.Second) % 60
@@ -54,9 +70,9 @@ func TextForEdit(result Result) (string, error) {
 	if strings.TrimSpace(text) == "" {
 		return "", fmt.Errorf("lyrics: lyrics cannot be empty")
 	}
-	for _, r := range text {
+	for i, r := range text {
 		if unicode.IsControl(r) && r != '\n' && r != '\t' {
-			return "", fmt.Errorf("lyrics: lyrics contain an unsupported control character")
+			return "", editLineError(strings.Count(text[:i], "\n")+1, "lyrics: unsupported control character")
 		}
 	}
 	return text, nil
@@ -71,9 +87,9 @@ func ParseEditedText(text string, level Level, duration time.Duration) (Result, 
 	}
 
 	text = strings.ReplaceAll(strings.ReplaceAll(text, "\r\n", "\n"), "\r", "\n")
-	for _, r := range text {
+	for i, r := range text {
 		if unicode.IsControl(r) && r != '\n' && r != '\t' {
-			return Result{}, fmt.Errorf("lyrics: unsupported control character")
+			return Result{}, editLineError(strings.Count(text[:i], "\n")+1, "lyrics: unsupported control character")
 		}
 	}
 	if strings.TrimSpace(text) == "" {
@@ -106,21 +122,21 @@ func parseEditedSyncedText(text string, duration time.Duration) (Result, error) 
 
 	for i, raw := range rawLines {
 		if raw == "" {
-			return Result{}, fmt.Errorf("lyrics: line %d is blank; synced lines require timestamps", i+1)
+			return Result{}, editLineError(i+1, "blank synced lines require timestamps")
 		}
 		if !strings.HasPrefix(raw, "[") {
-			return Result{}, fmt.Errorf("lyrics: line %d must start with an [mm:ss.xxx] timestamp", i+1)
+			return Result{}, editLineError(i+1, "synced lines must start with an [mm:ss.xxx] timestamp")
 		}
 		close := strings.IndexByte(raw, ']')
 		if close < 0 {
-			return Result{}, fmt.Errorf("lyrics: line %d has an incomplete timestamp", i+1)
+			return Result{}, editLineError(i+1, "incomplete timestamp")
 		}
 		start, ok := parseEditTimestamp(raw[1:close])
 		if !ok {
-			return Result{}, fmt.Errorf("lyrics: line %d has an invalid timestamp", i+1)
+			return Result{}, editLineError(i+1, "invalid timestamp")
 		}
 		if i > 0 && start < previous {
-			return Result{}, fmt.Errorf("lyrics: timestamps must be in chronological order")
+			return Result{}, editLineError(i+1, "timestamps must be in chronological order")
 		}
 		lines = append(lines, Line{Text: raw[close+1:], Start: start})
 		if strings.TrimSpace(raw[close+1:]) != "" {
@@ -142,6 +158,10 @@ func parseEditedSyncedText(text string, duration time.Duration) (Result, error) 
 		}
 	}
 	return Result{Level: LevelLine, Lines: lines}, nil
+}
+
+func editLineError(line int, message string) error {
+	return &EditError{Line: line, Err: fmt.Errorf("%s", message)}
 }
 
 func parseEditTimestamp(raw string) (time.Duration, bool) {

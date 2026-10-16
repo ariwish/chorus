@@ -1,6 +1,7 @@
 package lyrics
 
 import (
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -67,10 +68,26 @@ func TestParseEditedSyncedLyricsRejectsUnsafeInput(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if _, err := ParseEditedText(tt.text, LevelLine, 0); err == nil {
+			_, err := ParseEditedText(tt.text, LevelLine, 0)
+			if err == nil {
 				t.Fatal("ParseEditedText() succeeded, want validation error")
 			}
+			var editErr *EditError
+			if errors.As(err, &editErr) && editErr.Line < 1 {
+				t.Fatalf("EditError.Line = %d, want positive line number", editErr.Line)
+			}
 		})
+	}
+}
+
+func TestParseEditedSyncedLyricsReportsFailingLine(t *testing.T) {
+	_, err := ParseEditedText("[00:01.000]first\n[00:60.000]invalid", LevelLine, 0)
+	var editErr *EditError
+	if !errors.As(err, &editErr) {
+		t.Fatalf("ParseEditedText() error = %v, want *EditError", err)
+	}
+	if editErr.Line != 2 {
+		t.Fatalf("EditError.Line = %d, want 2", editErr.Line)
 	}
 }
 
