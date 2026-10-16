@@ -15,10 +15,9 @@ import (
 type Editor struct {
 	window      *gtk.Window
 	text        *gtk.TextView
-	lineNumbers *gtk.TextView
+	lineNumbers *gtk.Label
 	error       *gtk.Label
 	errorTag    *gtk.TextTag
-	numberTag   *gtk.TextTag
 	onSave      func(string) error
 }
 
@@ -49,18 +48,14 @@ func New(parent *gtk.Window, initial string, onSave func(string) error) *Editor 
 	editor.text.SetHExpand(true)
 	editor.text.Buffer().SetText(initial)
 
-	editor.lineNumbers = gtk.NewTextView()
-	editor.lineNumbers.SetMonospace(true)
-	editor.lineNumbers.SetEditable(false)
-	editor.lineNumbers.SetCursorVisible(false)
-	editor.lineNumbers.SetCanFocus(false)
-	editor.lineNumbers.SetWrapMode(gtk.WrapNone)
-	editor.lineNumbers.SetLeftMargin(0)
-	editor.lineNumbers.SetRightMargin(6)
+	editor.lineNumbers = gtk.NewLabel("")
+	editor.lineNumbers.SetJustify(gtk.JustifyRight)
+	editor.lineNumbers.SetHAlign(gtk.AlignFill)
+	editor.lineNumbers.SetVAlign(gtk.AlignStart)
 	editor.lineNumbers.AddCSSClass("dim-label")
+	editor.lineNumbers.AddCSSClass("monospace")
 
 	editor.errorTag = newErrorTag(editor.text.Buffer(), "chorus-editor-error-text")
-	editor.numberTag = newErrorTag(editor.lineNumbers.Buffer(), "chorus-editor-error-number")
 	editor.updateLineNumbers()
 	editor.text.Buffer().ConnectChanged(func() {
 		editor.clearError()
@@ -68,7 +63,7 @@ func New(parent *gtk.Window, initial string, onSave func(string) error) *Editor 
 	})
 
 	lineNumberScroll := gtk.NewScrolledWindow()
-	lineNumberScroll.SetPolicy(gtk.PolicyNever, gtk.PolicyNever)
+	lineNumberScroll.SetPolicy(gtk.PolicyNever, gtk.PolicyExternal)
 	lineNumberScroll.SetVExpand(true)
 	lineNumberScroll.SetHExpand(false)
 	lineNumberScroll.SetChild(editor.lineNumbers)
@@ -78,6 +73,9 @@ func New(parent *gtk.Window, initial string, onSave func(string) error) *Editor 
 	scroll.SetVExpand(true)
 	scroll.SetHExpand(true)
 	scroll.SetMinContentWidth(400)
+	scroll.SetMinContentHeight(300)
+	scroll.SetMaxContentHeight(400)
+	scroll.SetPropagateNaturalHeight(true)
 	scroll.SetChild(editor.text)
 
 	gutterAndText := gtk.NewBox(gtk.OrientationHorizontal, 8)
@@ -155,13 +153,12 @@ func (editor *Editor) updateLineNumbers() {
 		}
 		numbers.WriteString(strconv.Itoa(i))
 	}
-	editor.lineNumbers.Buffer().SetText(numbers.String())
+	editor.lineNumbers.SetText(numbers.String())
 }
 
 func (editor *Editor) highlightLine(line int) {
 	line--
 	textBuffer := editor.text.Buffer()
-	numberBuffer := editor.lineNumbers.Buffer()
 	textStart, ok := textBuffer.IterAtLine(line)
 	if !ok {
 		return
@@ -172,24 +169,12 @@ func (editor *Editor) highlightLine(line int) {
 	}
 	textBuffer.ApplyTag(editor.errorTag, textStart, textEnd)
 	editor.text.ScrollToIter(textStart, 0.1, false, 0, 0)
-
-	numberStart, ok := numberBuffer.IterAtLine(line)
-	if !ok {
-		return
-	}
-	numberEnd := numberStart.Copy()
-	if !numberEnd.ForwardLine() {
-		numberEnd = numberBuffer.EndIter()
-	}
-	numberBuffer.ApplyTag(editor.numberTag, numberStart, numberEnd)
 }
 
 func (editor *Editor) clearError() {
 	editor.error.SetVisible(false)
 	textBuffer := editor.text.Buffer()
 	textBuffer.RemoveTag(editor.errorTag, textBuffer.StartIter(), textBuffer.EndIter())
-	numberBuffer := editor.lineNumbers.Buffer()
-	numberBuffer.RemoveTag(editor.numberTag, numberBuffer.StartIter(), numberBuffer.EndIter())
 }
 
 func newErrorTag(buffer *gtk.TextBuffer, name string) *gtk.TextTag {
