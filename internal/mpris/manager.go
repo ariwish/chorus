@@ -256,16 +256,22 @@ func (m *Manager) registerPlayer(busName string) {
 	m.setTrack(busName, m.Snapshot(busName))
 }
 
-func (m *Manager) setTrack(busName string, track Track) {
+func (m *Manager) setTrack(busName string, track Track) bool {
 	m.mu.Lock()
 	if _, ok := m.players[busName]; !ok {
 		m.mu.Unlock()
-		return
+		return false
 	}
+	changed := m.tracks[busName].Key() != track.Key()
 	m.tracks[busName] = track
+	if changed && busName == m.current.busName {
+		m.pos.base = 0
+		m.pos.baseAt = time.Now()
+	}
 	m.mu.Unlock()
 
 	m.emitRoster()
+	return changed
 }
 
 func (m *Manager) playerAdded(busName string) {

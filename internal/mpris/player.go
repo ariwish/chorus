@@ -32,7 +32,7 @@ func (m *Manager) attachPlayer(busName string) {
 		m.conn.RemoveMatchSignal(seekedOpts...)
 	}()
 
-	m.refreshState(busName)
+	m.refreshState(busName, false)
 }
 
 func (m *Manager) Snapshot(busName string) Track {
@@ -76,7 +76,7 @@ func (m *Manager) SeekTo(pos time.Duration) error {
 	return nil
 }
 
-func (m *Manager) refreshState(busName string) {
+func (m *Manager) refreshState(busName string, trackChanged bool) {
 	player := gompris.NewPlayerWithConnection(busName, m.conn)
 
 	m.mu.Lock()
@@ -104,12 +104,15 @@ func (m *Manager) refreshState(busName string) {
 	positionMicros, _ := player.Position()
 	pos := time.Duration(positionMicros) * time.Microsecond
 
-	m.setTrack(busName, track)
+	trackChanged = m.setTrack(busName, track) || trackChanged
 
 	m.mu.Lock()
 	if busName != m.current.busName {
 		m.mu.Unlock()
 		return
+	}
+	if trackChanged {
+		pos = 0
 	}
 	m.pos = posState{base: pos, baseAt: time.Now(), rate: rate, playing: status == gompris.PlaybackStatusPlaying}
 	sendLatest(m.playbackCh, Playback{Player: info, Status: status, Track: track, Position: pos, CanSeek: canSeek})
@@ -138,8 +141,9 @@ func (m *Manager) handlePropertiesChanged(sig *dbus.Signal) {
 	_, metadataChanged := changed["Metadata"]
 	_, rateChanged := changed["Rate"]
 
+	trackChanged := false
 	if metadataChanged {
-		m.setTrack(busName, m.Snapshot(busName))
+		trackChanged = m.setTrack(busName, m.Snapshot(busName))
 	}
 
 	if statusChanged || metadataChanged {
@@ -150,7 +154,7 @@ func (m *Manager) handlePropertiesChanged(sig *dbus.Signal) {
 	isCurrent := busName == m.current.busName
 	m.mu.Unlock()
 	if isCurrent && (statusChanged || metadataChanged || rateChanged) {
-		m.refreshState(busName)
+		m.refreshState(busName, trackChanged)
 	}
 }
 

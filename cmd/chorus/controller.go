@@ -144,6 +144,9 @@ func (c *controller) fetch(track mpris.Track, refetch bool) {
 			if errors.Is(err, context.Canceled) {
 				return
 			}
+			if c.playback.Track.Key() != track.Key() {
+				return
+			}
 			c.view.SetResult(res, err, c.playback)
 		})
 	}()
