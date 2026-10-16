@@ -21,14 +21,18 @@ import (
 const fetchTimeout = 30 * time.Second
 
 type controller struct {
-	cfg        *config.Config
-	httpClient *http.Client
-	diskCache  *cache.Cache
-	view       *lyricsview.View
-	mgr        *mpris.Manager
-	fetcher    atomic.Pointer[lyrics.Fetcher]
-	cancel     context.CancelFunc
-	playback   mpris.Playback
+	cfg               *config.Config
+	httpClient        *http.Client
+	diskCache         *cache.Cache
+	view              *lyricsview.View
+	mgr               *mpris.Manager
+	fetcher           atomic.Pointer[lyrics.Fetcher]
+	cancel            context.CancelFunc
+	playback          mpris.Playback
+	generation        uint64
+	result            lyrics.Result
+	hasResult         bool
+	onLyricsAvailable func(bool)
 }
 
 func newController(cfg *config.Config, httpClient *http.Client, diskCache *cache.Cache, view *lyricsview.View, mgr *mpris.Manager) (*controller, error) {
@@ -73,12 +77,15 @@ func (c *controller) rebuildProvider() {
 			slog.Error("providers: rebuild failed", "err", err)
 			return
 		}
-		c.fetcher.Store(lyrics.NewFetcher(p, c.diskCache))
 
 		glib.IdleAdd(func() {
+			c.fetcher.Store(lyrics.NewFetcher(p, c.diskCache))
 			// a different provider may have different lyrics for the same track
 			if c.playback.Track.Key() != "" {
 				c.fetch(c.playback.Track, false)
+			} else {
+				c.generation++
+				c.clearEditableResult()
 			}
 		})
 	}()
@@ -106,6 +113,8 @@ func (c *controller) UpdatePosition(pos time.Duration) {
 
 func (c *controller) Idle() {
 	c.playback = mpris.Playback{}
+	c.generation++
+	c.clearEditableResult()
 	if c.cancel != nil {
 		c.cancel()
 	}
@@ -113,6 +122,9 @@ func (c *controller) Idle() {
 }
 
 func (c *controller) fetch(track mpris.Track, refetch bool) {
+	c.generation++
+	generation := c.generation
+	c.clearEditableResult()
 	c.view.SetLoading()
 
 	if c.cancel != nil {
@@ -144,10 +156,73 @@ func (c *controller) fetch(track mpris.Track, refetch bool) {
 			if errors.Is(err, context.Canceled) {
 				return
 			}
-			if c.playback.Track.Key() != track.Key() {
+			if c.playback.Track.Key() != track.Key() || c.generation != generation {
 				return
+			}
+			if err == nil && !res.Instrumental && len(res.Lines) > 0 {
+				if _, editErr := lyrics.TextForEdit(res); editErr != nil {
+					slog.Warn("lyrics: result cannot be opened for editing", "err", editErr)
+				} else {
+					c.result = res
+					c.hasResult = true
+					c.notifyLyricsAvailable(true)
+				}
 			}
 			c.view.SetResult(res, err, c.playback)
 		})
 	}()
+}
+
+func (c *controller) OnLyricsAvailable(callback func(bool)) {
+	c.onLyricsAvailable = callback
+	c.notifyLyricsAvailable(c.hasResult)
+}
+
+func (c *controller) EditableLyrics() (string, lyrics.Level, string, uint64, error) {
+	if !c.hasResult {
+		return "", "", "", 0, errors.New("lyrics are not available to edit")
+	}
+	text, err := lyrics.TextForEdit(c.result)
+	if err != nil {
+		return "", "", "", 0, err
+	}
+	return text, c.result.Level, c.playback.Track.Key(), c.generation, nil
+}
+
+func (c *controller) SaveEditedLyrics(trackKey string, generation uint64, level lyrics.Level, text string) error {
+	if !c.hasResult || c.playback.Track.Key() != trackKey || c.generation != generation {
+		return errors.New("the track or lyrics changed while the editor was open; reopen the editor to apply your changes")
+	}
+
+	result, err := lyrics.ParseEditedText(text, level, c.playback.Track.Length)
+	if err != nil {
+		return err
+	}
+
+	query := lyrics.TrackQuery{
+		Artist:   c.playback.Track.Artist,
+		Title:    c.playback.Track.Title,
+		Album:    c.playback.Track.Album,
+		Duration: c.playback.Track.Length,
+	}
+	if err := c.fetcher.Load().Save(query, result); err != nil {
+		return err
+	}
+
+	c.generation++
+	c.result = result
+	c.view.SetResult(result, nil, c.playback)
+	return nil
+}
+
+func (c *controller) clearEditableResult() {
+	c.result = lyrics.Result{}
+	c.hasResult = false
+	c.notifyLyricsAvailable(false)
+}
+
+func (c *controller) notifyLyricsAvailable(available bool) {
+	if c.onLyricsAvailable != nil {
+		c.onLyricsAvailable(available)
+	}
 }
