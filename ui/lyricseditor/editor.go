@@ -27,11 +27,12 @@ func New(parent *gtk.Window, initial string, onSave func(string) error) *Editor 
 	window.SetTitle(locale.Get("Edit Lyrics"))
 	window.SetTransientFor(parent)
 	window.SetModal(true)
-	window.SetDefaultSize(640, 480)
+	window.SetDefaultSize(800, 520)
 
 	editor := &Editor{window: window, onSave: onSave}
 
 	content := gtk.NewBox(gtk.OrientationVertical, 12)
+	content.SetHExpand(true)
 	content.SetMarginTop(18)
 	content.SetMarginBottom(18)
 	content.SetMarginStart(18)
@@ -45,6 +46,7 @@ func New(parent *gtk.Window, initial string, onSave func(string) error) *Editor 
 	editor.text = gtk.NewTextView()
 	editor.text.SetMonospace(true)
 	editor.text.SetWrapMode(gtk.WrapNone)
+	editor.text.SetHExpand(true)
 	editor.text.Buffer().SetText(initial)
 
 	editor.lineNumbers = gtk.NewTextView()
@@ -53,7 +55,8 @@ func New(parent *gtk.Window, initial string, onSave func(string) error) *Editor 
 	editor.lineNumbers.SetCursorVisible(false)
 	editor.lineNumbers.SetCanFocus(false)
 	editor.lineNumbers.SetWrapMode(gtk.WrapNone)
-	editor.lineNumbers.SetSizeRequest(48, -1)
+	editor.lineNumbers.SetLeftMargin(0)
+	editor.lineNumbers.SetRightMargin(6)
 	editor.lineNumbers.AddCSSClass("dim-label")
 
 	editor.errorTag = newErrorTag(editor.text.Buffer(), "chorus-editor-error-text")
@@ -67,14 +70,18 @@ func New(parent *gtk.Window, initial string, onSave func(string) error) *Editor 
 	lineNumberScroll := gtk.NewScrolledWindow()
 	lineNumberScroll.SetPolicy(gtk.PolicyNever, gtk.PolicyNever)
 	lineNumberScroll.SetVExpand(true)
+	lineNumberScroll.SetHExpand(false)
 	lineNumberScroll.SetChild(editor.lineNumbers)
 
 	scroll := gtk.NewScrolledWindow()
 	scroll.SetPolicy(gtk.PolicyAutomatic, gtk.PolicyAutomatic)
 	scroll.SetVExpand(true)
+	scroll.SetHExpand(true)
+	scroll.SetMinContentWidth(400)
 	scroll.SetChild(editor.text)
 
 	gutterAndText := gtk.NewBox(gtk.OrientationHorizontal, 8)
+	gutterAndText.SetHExpand(true)
 	gutterAndText.Append(lineNumberScroll)
 	gutterAndText.Append(scroll)
 	content.Append(gutterAndText)
@@ -138,6 +145,9 @@ func (editor *Editor) save() {
 
 func (editor *Editor) updateLineNumbers() {
 	count := editor.text.Buffer().LineCount()
+	digits := len(strconv.Itoa(count))
+	editor.lineNumbers.SetSizeRequest(10+digits*10, -1)
+
 	var numbers strings.Builder
 	for i := 1; i <= count; i++ {
 		if i > 1 {
