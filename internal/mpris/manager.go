@@ -15,7 +15,9 @@ import (
 )
 
 const (
-	busNamePrefix = "org.mpris.MediaPlayer2."
+	busNamePrefix         = "org.mpris.MediaPlayer2."
+	positionSyncInterval  = 500 * time.Millisecond
+	positionSyncTolerance = 1200 * time.Millisecond
 
 	objectPath      = "/org/mpris/MediaPlayer2"
 	propsInterface  = "org.freedesktop.DBus.Properties"
@@ -128,6 +130,8 @@ func (m *Manager) Start(ctx context.Context) error {
 
 	sigCh := make(chan *dbus.Signal, 32)
 	m.conn.Signal(sigCh)
+	positionTicker := time.NewTicker(positionSyncInterval)
+	defer positionTicker.Stop()
 
 	m.rescanPlayers()
 
@@ -135,6 +139,8 @@ func (m *Manager) Start(ctx context.Context) error {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
+		case <-positionTicker.C:
+			m.syncPosition()
 		case sig, ok := <-sigCh:
 			// TODO: reconnect?
 			if !ok {
@@ -143,6 +149,41 @@ func (m *Manager) Start(ctx context.Context) error {
 			m.handleSignal(sig)
 		}
 	}
+}
+
+func (m *Manager) syncPosition() {
+	m.mu.Lock()
+	busName := m.current.busName
+	m.mu.Unlock()
+	if busName == "" {
+		return
+	}
+
+	positionMicros, err := gompris.NewPlayerWithConnection(busName, m.conn).Position()
+	if err != nil {
+		slog.Debug("mpris: Position read failed", "player", busName, "err", err)
+		return
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if busName != m.current.busName {
+		return
+	}
+	reported := time.Duration(positionMicros) * time.Microsecond
+	if !positionNeedsSync(m.pos.interpolated(), reported) {
+		return
+	}
+	m.pos.base = reported
+	m.pos.baseAt = time.Now()
+}
+
+func positionNeedsSync(estimated, reported time.Duration) bool {
+	diff := estimated - reported
+	if diff < 0 {
+		diff = -diff
+	}
+	return diff > positionSyncTolerance
 }
 
 func (m *Manager) SelectPlayer(busName string) {
@@ -256,16 +297,22 @@ func (m *Manager) registerPlayer(busName string) {
 	m.setTrack(busName, m.Snapshot(busName))
 }
 
-func (m *Manager) setTrack(busName string, track Track) {
+func (m *Manager) setTrack(busName string, track Track) bool {
 	m.mu.Lock()
 	if _, ok := m.players[busName]; !ok {
 		m.mu.Unlock()
-		return
+		return false
 	}
+	changed := m.tracks[busName].Key() != track.Key()
 	m.tracks[busName] = track
+	if changed && busName == m.current.busName {
+		m.pos.base = 0
+		m.pos.baseAt = time.Now()
+	}
 	m.mu.Unlock()
 
 	m.emitRoster()
+	return changed
 }
 
 func (m *Manager) playerAdded(busName string) {

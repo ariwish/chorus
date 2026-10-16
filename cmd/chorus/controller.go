@@ -78,7 +78,7 @@ func (c *controller) rebuildProvider() {
 		glib.IdleAdd(func() {
 			// a different provider may have different lyrics for the same track
 			if c.playback.Track.Key() != "" {
-				c.fetch(c.playback.Track)
+				c.fetch(c.playback.Track, false)
 			}
 		})
 	}()
@@ -88,8 +88,15 @@ func (c *controller) ChangeTrack(pb mpris.Playback) {
 	changed := pb.Track.Key() != c.playback.Track.Key()
 	c.playback = pb
 	if changed {
-		c.fetch(pb.Track)
+		c.fetch(pb.Track, false)
 	}
+}
+
+func (c *controller) RefetchLyrics() {
+	if c.playback.Track.Key() == "" {
+		return
+	}
+	c.fetch(c.playback.Track, true)
 }
 
 func (c *controller) UpdatePosition(pos time.Duration) {
@@ -105,7 +112,7 @@ func (c *controller) Idle() {
 	c.view.SetIdle()
 }
 
-func (c *controller) fetch(track mpris.Track) {
+func (c *controller) fetch(track mpris.Track, refetch bool) {
 	c.view.SetLoading()
 
 	if c.cancel != nil {
@@ -119,15 +126,25 @@ func (c *controller) fetch(track mpris.Track) {
 		defer cancel()
 		f := c.fetcher.Load()
 
-		res, err := f.Get(ctx, lyrics.TrackQuery{
+		query := lyrics.TrackQuery{
 			Artist:   track.Artist,
 			Title:    track.Title,
 			Album:    track.Album,
 			Duration: track.Length,
-		})
+		}
+		var res lyrics.Result
+		var err error
+		if refetch {
+			res, err = f.Refetch(ctx, query)
+		} else {
+			res, err = f.Get(ctx, query)
+		}
 
 		glib.IdleAdd(func() {
 			if errors.Is(err, context.Canceled) {
+				return
+			}
+			if c.playback.Track.Key() != track.Key() {
 				return
 			}
 			c.view.SetResult(res, err, c.playback)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"slices"
 	"time"
 
 	"github.com/godbus/dbus/v5"
@@ -134,9 +135,9 @@ func (m *Manager) handlePropertiesChanged(sig *dbus.Signal) {
 		return
 	}
 
-	_, statusChanged := changed["PlaybackStatus"]
-	_, metadataChanged := changed["Metadata"]
-	_, rateChanged := changed["Rate"]
+	statusChanged := propertyChanged(changed, invalidated, "PlaybackStatus")
+	metadataChanged := propertyChanged(changed, invalidated, "Metadata")
+	rateChanged := propertyChanged(changed, invalidated, "Rate")
 
 	if metadataChanged {
 		m.setTrack(busName, m.Snapshot(busName))
@@ -152,6 +153,11 @@ func (m *Manager) handlePropertiesChanged(sig *dbus.Signal) {
 	if isCurrent && (statusChanged || metadataChanged || rateChanged) {
 		m.refreshState(busName)
 	}
+}
+
+func propertyChanged(changed map[string]dbus.Variant, invalidated []string, property string) bool {
+	_, isChanged := changed[property]
+	return isChanged || slices.Contains(invalidated, property)
 }
 
 func trackFromMetadata(m gompris.Metadata) Track {

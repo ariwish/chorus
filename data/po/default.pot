@@ -4,7 +4,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: ui/header/header.go:29
+#: ui/header/header.go:30
 msgid "About"
 msgstr ""
 
@@ -16,7 +16,7 @@ msgstr ""
 msgid "Background"
 msgstr ""
 
-#: internal/providers/lrcmux/lrcmux.go:21
+#: internal/providers/lrclib/lrclib.go:22 internal/providers/lrcmux/lrcmux.go:21
 msgid "Base URL"
 msgstr ""
 
@@ -56,7 +56,7 @@ msgstr ""
 msgid "Play something and lyrics will show up here."
 msgstr ""
 
-#: ui/header/header.go:28 ui/settings/settings.go:36
+#: ui/header/header.go:29 ui/settings/settings.go:36
 msgid "Preferences"
 msgstr ""
 
@@ -66,6 +66,10 @@ msgstr ""
 
 #: ui/settings/provider.go:24 ui/settings/settings.go:45
 msgid "Provider"
+msgstr ""
+
+#: ui/header/header.go:28
+msgid "Refetch Lyrics"
 msgstr ""
 
 #: ui/settings/settings.go:56
