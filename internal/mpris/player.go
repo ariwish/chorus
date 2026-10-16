@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"slices"
 	"time"
 
 	"github.com/godbus/dbus/v5"
@@ -32,7 +33,7 @@ func (m *Manager) attachPlayer(busName string) {
 		m.conn.RemoveMatchSignal(seekedOpts...)
 	}()
 
-	m.refreshState(busName, false)
+	m.refreshState(busName)
 }
 
 func (m *Manager) Snapshot(busName string) Track {
@@ -76,7 +77,7 @@ func (m *Manager) SeekTo(pos time.Duration) error {
 	return nil
 }
 
-func (m *Manager) refreshState(busName string, trackChanged bool) {
+func (m *Manager) refreshState(busName string) {
 	player := gompris.NewPlayerWithConnection(busName, m.conn)
 
 	m.mu.Lock()
@@ -104,15 +105,12 @@ func (m *Manager) refreshState(busName string, trackChanged bool) {
 	positionMicros, _ := player.Position()
 	pos := time.Duration(positionMicros) * time.Microsecond
 
-	trackChanged = m.setTrack(busName, track) || trackChanged
+	m.setTrack(busName, track)
 
 	m.mu.Lock()
 	if busName != m.current.busName {
 		m.mu.Unlock()
 		return
-	}
-	if trackChanged {
-		pos = 0
 	}
 	m.pos = posState{base: pos, baseAt: time.Now(), rate: rate, playing: status == gompris.PlaybackStatusPlaying}
 	sendLatest(m.playbackCh, Playback{Player: info, Status: status, Track: track, Position: pos, CanSeek: canSeek})
@@ -137,13 +135,12 @@ func (m *Manager) handlePropertiesChanged(sig *dbus.Signal) {
 		return
 	}
 
-	_, statusChanged := changed["PlaybackStatus"]
-	_, metadataChanged := changed["Metadata"]
-	_, rateChanged := changed["Rate"]
+	statusChanged := propertyChanged(changed, invalidated, "PlaybackStatus")
+	metadataChanged := propertyChanged(changed, invalidated, "Metadata")
+	rateChanged := propertyChanged(changed, invalidated, "Rate")
 
-	trackChanged := false
 	if metadataChanged {
-		trackChanged = m.setTrack(busName, m.Snapshot(busName))
+		m.setTrack(busName, m.Snapshot(busName))
 	}
 
 	if statusChanged || metadataChanged {
@@ -154,8 +151,13 @@ func (m *Manager) handlePropertiesChanged(sig *dbus.Signal) {
 	isCurrent := busName == m.current.busName
 	m.mu.Unlock()
 	if isCurrent && (statusChanged || metadataChanged || rateChanged) {
-		m.refreshState(busName, trackChanged)
+		m.refreshState(busName)
 	}
+}
+
+func propertyChanged(changed map[string]dbus.Variant, invalidated []string, property string) bool {
+	_, isChanged := changed[property]
+	return isChanged || slices.Contains(invalidated, property)
 }
 
 func trackFromMetadata(m gompris.Metadata) Track {

@@ -38,3 +38,28 @@ func TestSetTrackDoesNotResetPositionForSameTrack(t *testing.T) {
 		t.Errorf("CurrentPosition() = %s, want 30s for the same track", pos)
 	}
 }
+
+func TestPositionNeedsSyncIgnoresSmallDifferences(t *testing.T) {
+	estimated := 10 * time.Second
+	for _, reported := range []time.Duration{
+		estimated - positionSyncTolerance,
+		estimated,
+		estimated + positionSyncTolerance,
+	} {
+		if positionNeedsSync(estimated, reported) {
+			t.Errorf("positionNeedsSync(%s, %s) = true, want false", estimated, reported)
+		}
+	}
+}
+
+func TestPositionNeedsSyncDetectsLargeDifferences(t *testing.T) {
+	estimated := 10 * time.Second
+	for _, reported := range []time.Duration{
+		estimated - positionSyncTolerance - time.Nanosecond,
+		estimated + positionSyncTolerance + time.Nanosecond,
+	} {
+		if !positionNeedsSync(estimated, reported) {
+			t.Errorf("positionNeedsSync(%s, %s) = false, want true", estimated, reported)
+		}
+	}
+}
