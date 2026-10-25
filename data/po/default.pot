@@ -4,7 +4,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: ui/header/header.go:30
+#: ui/header/header.go:31
 msgid "About"
 msgstr ""
 
@@ -24,6 +24,10 @@ msgstr ""
 msgid "Blur"
 msgstr ""
 
+#: ui/lyricseditor/editor.go:56
+msgid "Cancel"
+msgstr ""
+
 #: ui/picker/picker.go:40
 msgid "Choose player"
 msgstr ""
@@ -34,6 +38,14 @@ msgstr ""
 
 #: ui/lyricsview/view.go:152
 msgid "Couldn't fetch lyrics"
+msgstr ""
+
+#: ui/header/header.go:29 ui/lyricseditor/editor.go:18
+msgid "Edit Lyrics"
+msgstr ""
+
+#: ui/lyricseditor/editor.go:31
+msgid "For synced lyrics, keep each [mm:ss.xxx] timestamp at the start of its line."
 msgstr ""
 
 #: ui/lyricsview/view.go:150
@@ -56,7 +68,7 @@ msgstr ""
 msgid "Play something and lyrics will show up here."
 msgstr ""
 
-#: ui/header/header.go:29 ui/settings/settings.go:36
+#: ui/header/header.go:30 ui/settings/settings.go:36
 msgid "Preferences"
 msgstr ""
 
@@ -70,6 +82,10 @@ msgstr ""
 
 #: ui/header/header.go:28
 msgid "Refetch Lyrics"
+msgstr ""
+
+#: ui/lyricseditor/editor.go:60
+msgid "Save"
 msgstr ""
 
 #: ui/settings/settings.go:56

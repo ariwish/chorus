@@ -1,0 +1,134 @@
+package lyricseditor
+
+import (
+	"errors"
+
+	coreglib "github.com/diamondburned/gotk4/pkg/core/glib"
+	"github.com/diamondburned/gotk4/pkg/gtk/v4"
+
+	"github.com/f1nniboy/chorus/internal/locale"
+	"github.com/f1nniboy/chorus/internal/lyrics"
+)
+
+type Editor struct {
+	window   *gtk.Window
+	text     *gtk.TextView
+	error    *gtk.Label
+	errorTag *gtk.TextTag
+	onSave   func(string) error
+}
+
+func New(parent *gtk.Window, initial string, onSave func(string) error) *Editor {
+	window := gtk.NewWindow()
+	window.SetTitle(locale.Get("Edit Lyrics"))
+	window.SetTransientFor(parent)
+	window.SetModal(true)
+	window.SetDefaultSize(800, 520)
+
+	editor := &Editor{window: window, onSave: onSave}
+
+	content := gtk.NewBox(gtk.OrientationVertical, 12)
+	content.SetHExpand(true)
+	content.SetMarginTop(18)
+	content.SetMarginBottom(18)
+	content.SetMarginStart(18)
+	content.SetMarginEnd(18)
+
+	note := gtk.NewLabel(locale.Get("Synced lyrics use LRC timestamps, such as [01:23.45]. Multiple timestamps may precede one lyric."))
+	note.SetWrap(true)
+	note.SetHAlign(gtk.AlignStart)
+	content.Append(note)
+
+	editor.text = gtk.NewTextView()
+	editor.text.SetMonospace(true)
+	editor.text.SetWrapMode(gtk.WrapNone)
+	editor.text.SetHExpand(true)
+	editor.text.Buffer().SetText(initial)
+
+	editor.errorTag = newErrorTag(editor.text.Buffer(), "chorus-editor-error-text")
+	editor.text.Buffer().ConnectChanged(func() {
+		editor.clearError()
+	})
+
+	scroll := gtk.NewScrolledWindow()
+	scroll.SetPolicy(gtk.PolicyAutomatic, gtk.PolicyAutomatic)
+	scroll.SetVExpand(true)
+	scroll.SetHExpand(true)
+	scroll.SetMinContentWidth(400)
+	scroll.SetMinContentHeight(300)
+	scroll.SetMaxContentHeight(400)
+	scroll.SetPropagateNaturalHeight(true)
+	scroll.SetChild(editor.text)
+	content.Append(scroll)
+
+	editor.error = gtk.NewLabel("")
+	editor.error.SetWrap(true)
+	editor.error.SetHAlign(gtk.AlignStart)
+	editor.error.AddCSSClass("error")
+	editor.error.SetVisible(false)
+	content.Append(editor.error)
+
+	buttons := gtk.NewBox(gtk.OrientationHorizontal, 8)
+	buttons.SetHAlign(gtk.AlignEnd)
+	cancel := gtk.NewButtonWithLabel(locale.Get("Cancel"))
+	cancel.ConnectClicked(window.Close)
+	buttons.Append(cancel)
+
+	save := gtk.NewButtonWithLabel(locale.Get("Save"))
+	save.AddCSSClass("suggested-action")
+	save.ConnectClicked(editor.save)
+	buttons.Append(save)
+	content.Append(buttons)
+
+	window.SetChild(content)
+	window.SetDefaultWidget(save)
+	return editor
+}
+
+func (editor *Editor) Present() {
+	editor.window.Present()
+}
+
+func (editor *Editor) save() {
+	start, end := editor.text.Buffer().StartIter(), editor.text.Buffer().EndIter()
+	text := editor.text.Buffer().Text(start, end, true)
+	if err := editor.onSave(text); err != nil {
+		editor.clearError()
+		editor.error.SetText(err.Error())
+		editor.error.SetVisible(true)
+		var editErr *lyrics.EditError
+		if errors.As(err, &editErr) {
+			editor.highlightLine(editErr.Line)
+		}
+		return
+	}
+	editor.window.Close()
+}
+
+func (editor *Editor) highlightLine(line int) {
+	line--
+	textBuffer := editor.text.Buffer()
+	textStart, ok := textBuffer.IterAtLine(line)
+	if !ok {
+		return
+	}
+	textEnd := textStart.Copy()
+	if !textEnd.ForwardLine() {
+		textEnd = textBuffer.EndIter()
+	}
+	textBuffer.ApplyTag(editor.errorTag, textStart, textEnd)
+	editor.text.ScrollToIter(textStart, 0.1, false, 0, 0)
+}
+
+func (editor *Editor) clearError() {
+	editor.error.SetVisible(false)
+	textBuffer := editor.text.Buffer()
+	textBuffer.RemoveTag(editor.errorTag, textBuffer.StartIter(), textBuffer.EndIter())
+}
+
+func newErrorTag(buffer *gtk.TextBuffer, name string) *gtk.TextTag {
+	tag := gtk.NewTextTag(name)
+	coreglib.BaseObject(tag).SetObjectProperty("background", "rgba(255, 0, 0, 0.18)")
+	buffer.TagTable().Add(tag)
+	return tag
+}

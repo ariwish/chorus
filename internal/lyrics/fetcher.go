@@ -3,6 +3,7 @@ package lyrics
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 
 	"github.com/f1nniboy/chorus/internal/cache"
 )
@@ -34,14 +35,27 @@ func (f *Fetcher) Refetch(ctx context.Context, q TrackQuery) (Result, error) {
 	return f.fetchAndCache(ctx, q, key)
 }
 
+func (f *Fetcher) Save(q TrackQuery, res Result) error {
+	data, err := json.Marshal(res)
+	if err != nil {
+		return err
+	}
+	key := cache.Key(f.provider.ID(), q.Artist, q.Title, q.Album)
+	return f.cache.Set(key, data)
+}
+
 func (f *Fetcher) fetchAndCache(ctx context.Context, q TrackQuery, key string) (Result, error) {
 	res, err := f.provider.Fetch(ctx, q)
 	if err != nil {
 		return Result{}, err
 	}
 
-	if data, err := json.Marshal(res); err == nil {
-		f.cache.Set(key, data)
+	data, err := json.Marshal(res)
+	if err != nil {
+		return Result{}, err
+	}
+	if err := f.cache.Set(key, data); err != nil {
+		slog.Warn("lyrics: failed to cache fetched lyrics", "err", err)
 	}
 	return res, nil
 }

@@ -24,6 +24,7 @@ import (
 	"github.com/f1nniboy/chorus/internal/mpris"
 	"github.com/f1nniboy/chorus/internal/providers/base"
 	"github.com/f1nniboy/chorus/ui/about"
+	"github.com/f1nniboy/chorus/ui/lyricseditor"
 	"github.com/f1nniboy/chorus/ui/settings"
 	"github.com/f1nniboy/chorus/ui/window"
 )
@@ -92,6 +93,26 @@ func main() {
 			controller.RefetchLyrics()
 		})
 		app.AddAction(refetchAction)
+
+		editLyricsAction := gio.NewSimpleAction("edit-lyrics", nil)
+		editLyricsAction.SetEnabled(false)
+		editLyricsAction.ConnectActivate(func(_ *glib.Variant) {
+			text, level, trackKey, generation, err := controller.EditableLyrics()
+			if err != nil {
+				slog.Error("lyrics: cannot open editor", "err", err)
+				return
+			}
+			editor := lyricseditor.New(
+				&win.ApplicationWindow.ApplicationWindow.Window,
+				text,
+				func(text string) error {
+					return controller.SaveEditedLyrics(trackKey, generation, level, text)
+				},
+			)
+			editor.Present()
+		})
+		app.AddAction(editLyricsAction)
+		controller.OnEditAvailable(editLyricsAction.SetEnabled)
 
 		prefs := settings.New(cfg)
 		preferencesAction := gio.NewSimpleAction("preferences", nil)

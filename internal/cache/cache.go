@@ -45,7 +45,29 @@ func (c *Cache) Get(key string) ([]byte, bool) {
 }
 
 func (c *Cache) Set(key string, data []byte) error {
-	return os.WriteFile(filepath.Join(c.dir, key), data, 0o644)
+	file, err := os.CreateTemp(c.dir, ".cache-*")
+	if err != nil {
+		return err
+	}
+	tempPath := file.Name()
+	defer os.Remove(tempPath)
+
+	if err := file.Chmod(0o644); err != nil {
+		file.Close()
+		return err
+	}
+	if _, err := file.Write(data); err != nil {
+		file.Close()
+		return err
+	}
+	if err := file.Sync(); err != nil {
+		file.Close()
+		return err
+	}
+	if err := file.Close(); err != nil {
+		return err
+	}
+	return os.Rename(tempPath, filepath.Join(c.dir, key))
 }
 
 func (c *Cache) Size() (int64, error) {
