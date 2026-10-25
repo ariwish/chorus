@@ -32,7 +32,7 @@ type controller struct {
 	generation        uint64
 	result            lyrics.Result
 	hasResult         bool
-	onLyricsAvailable func(bool)
+	onEditAvailable   func(bool)
 }
 
 func newController(cfg *config.Config, httpClient *http.Client, diskCache *cache.Cache, view *lyricsview.View, mgr *mpris.Manager) (*controller, error) {
@@ -165,7 +165,7 @@ func (c *controller) fetch(track mpris.Track, refetch bool) {
 				} else {
 					c.result = res
 					c.hasResult = true
-					c.notifyLyricsAvailable(true)
+					c.notifyEditAvailable(true)
 				}
 			}
 			c.view.SetResult(res, err, c.playback)
@@ -173,24 +173,28 @@ func (c *controller) fetch(track mpris.Track, refetch bool) {
 	}()
 }
 
-func (c *controller) OnLyricsAvailable(callback func(bool)) {
-	c.onLyricsAvailable = callback
-	c.notifyLyricsAvailable(c.hasResult)
+func (c *controller) OnEditAvailable(callback func(bool)) {
+	c.onEditAvailable = callback
+	c.notifyEditAvailable(c.playback.Track.Key() != "")
 }
 
 func (c *controller) EditableLyrics() (string, lyrics.Level, string, uint64, error) {
+	trackKey := c.playback.Track.Key()
+	if trackKey == "" {
+		return "", "", "", 0, errors.New("no track is available to edit")
+	}
 	if !c.hasResult {
-		return "", "", "", 0, errors.New("lyrics are not available to edit")
+		return "", lyrics.LevelNone, trackKey, c.generation, nil
 	}
 	text, err := lyrics.TextForEdit(c.result)
 	if err != nil {
 		return "", "", "", 0, err
 	}
-	return text, c.result.Level, c.playback.Track.Key(), c.generation, nil
+	return text, c.result.Level, trackKey, c.generation, nil
 }
 
 func (c *controller) SaveEditedLyrics(trackKey string, generation uint64, level lyrics.Level, text string) error {
-	if !c.hasResult || c.playback.Track.Key() != trackKey || c.generation != generation {
+	if trackKey == "" || c.playback.Track.Key() != trackKey || c.generation != generation {
 		return errors.New("the track or lyrics changed while the editor was open; reopen the editor to apply your changes")
 	}
 
@@ -211,6 +215,7 @@ func (c *controller) SaveEditedLyrics(trackKey string, generation uint64, level 
 
 	c.generation++
 	c.result = result
+	c.hasResult = true
 	c.view.SetResult(result, nil, c.playback)
 	return nil
 }
@@ -218,11 +223,11 @@ func (c *controller) SaveEditedLyrics(trackKey string, generation uint64, level 
 func (c *controller) clearEditableResult() {
 	c.result = lyrics.Result{}
 	c.hasResult = false
-	c.notifyLyricsAvailable(false)
+	c.notifyEditAvailable(c.playback.Track.Key() != "")
 }
 
-func (c *controller) notifyLyricsAvailable(available bool) {
-	if c.onLyricsAvailable != nil {
-		c.onLyricsAvailable(available)
+func (c *controller) notifyEditAvailable(available bool) {
+	if c.onEditAvailable != nil {
+		c.onEditAvailable(available)
 	}
 }

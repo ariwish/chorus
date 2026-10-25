@@ -114,7 +114,7 @@ func parseSyncedLyrics(raw string, duration time.Duration) []lyrics.Line {
 			if close < 0 {
 				break
 			}
-			start, ok := parseTimestamp(remaining[1:close])
+			start, ok := lyrics.ParseLRCTimestamp(remaining[1:close])
 			if !ok {
 				break
 			}
@@ -143,44 +143,4 @@ func parseSyncedLyrics(raw string, duration time.Duration) []lyrics.Line {
 		}
 	}
 	return lines
-}
-
-func parseTimestamp(raw string) (time.Duration, bool) {
-	minutePart, secondPart, ok := strings.Cut(raw, ":")
-	if !ok {
-		return 0, false
-	}
-	minutes, err := strconv.Atoi(minutePart)
-	if err != nil || minutes < 0 {
-		return 0, false
-	}
-
-	secondsPart, fraction, hasFraction := strings.Cut(secondPart, ".")
-	if !hasFraction {
-		secondsPart, fraction, hasFraction = strings.Cut(secondPart, ":")
-	}
-	seconds, err := strconv.Atoi(secondsPart)
-	if err != nil || seconds < 0 || seconds >= 60 {
-		return 0, false
-	}
-
-	var fractionDuration time.Duration
-	if hasFraction {
-		if fraction == "" || len(fraction) > 3 {
-			return 0, false
-		}
-		fractionValue, err := strconv.Atoi(fraction)
-		if err != nil {
-			return 0, false
-		}
-		switch len(fraction) {
-		case 1:
-			fractionValue *= 100
-		case 2:
-			fractionValue *= 10
-		}
-		fractionDuration = time.Duration(fractionValue) * time.Millisecond
-	}
-
-	return time.Duration(minutes)*time.Minute + time.Duration(seconds)*time.Second + fractionDuration, true
 }

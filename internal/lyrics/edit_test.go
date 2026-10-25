@@ -59,9 +59,8 @@ func TestParseEditedSyncedLyricsRejectsUnsafeInput(t *testing.T) {
 	}{
 		{name: "missing timestamp", text: "line without timing"},
 		{name: "invalid timestamp", text: "[00:60.000]bad seconds"},
-		{name: "noncanonical timestamp", text: "[0:1.000]not canonical"},
-		{name: "out of order", text: "[00:02.000]later\n[00:01.000]earlier"},
-		{name: "blank line", text: "[00:01.000]first\n\n[00:02.000]second"},
+		{name: "invalid fraction", text: "[0:01.0000]too precise"},
+		{name: "untimed line", text: "[00:01.000]first\nuntimed text"},
 		{name: "empty lyrics", text: "[00:01.000]"},
 		{name: "empty", text: " \n"},
 		{name: "control character", text: "[00:01.000]bad\x00text"},
@@ -77,6 +76,26 @@ func TestParseEditedSyncedLyricsRejectsUnsafeInput(t *testing.T) {
 				t.Fatalf("EditError.Line = %d, want positive line number", editErr.Line)
 			}
 		})
+	}
+}
+
+func TestParseEditedLRCLyrics(t *testing.T) {
+	got, err := ParseEditedText("[ar:Artist]\n[00:02.34]Second\n[00:01.2][00:03.456]First", LevelNone, 5*time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []Line{
+		{Text: "First", Start: 1200 * time.Millisecond, End: 2340 * time.Millisecond},
+		{Text: "Second", Start: 2340 * time.Millisecond, End: 3456 * time.Millisecond},
+		{Text: "First", Start: 3456 * time.Millisecond, End: 5 * time.Second},
+	}
+	if got.Level != LevelLine || len(got.Lines) != len(want) {
+		t.Fatalf("ParseEditedText() = %#v, want synced lyrics", got)
+	}
+	for i := range want {
+		if got.Lines[i] != want[i] {
+			t.Errorf("line %d = %#v, want %#v", i, got.Lines[i], want[i])
+		}
 	}
 }
 

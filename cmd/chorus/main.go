@@ -112,7 +112,7 @@ func main() {
 			editor.Present()
 		})
 		app.AddAction(editLyricsAction)
-		controller.OnLyricsAvailable(editLyricsAction.SetEnabled)
+		controller.OnEditAvailable(editLyricsAction.SetEnabled)
 
 		prefs := settings.New(cfg)
 		preferencesAction := gio.NewSimpleAction("preferences", nil)

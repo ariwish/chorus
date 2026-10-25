@@ -2,8 +2,6 @@ package lyricseditor
 
 import (
 	"errors"
-	"strconv"
-	"strings"
 
 	coreglib "github.com/diamondburned/gotk4/pkg/core/glib"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
@@ -13,12 +11,11 @@ import (
 )
 
 type Editor struct {
-	window      *gtk.Window
-	text        *gtk.TextView
-	lineNumbers *gtk.Label
-	error       *gtk.Label
-	errorTag    *gtk.TextTag
-	onSave      func(string) error
+	window   *gtk.Window
+	text     *gtk.TextView
+	error    *gtk.Label
+	errorTag *gtk.TextTag
+	onSave   func(string) error
 }
 
 func New(parent *gtk.Window, initial string, onSave func(string) error) *Editor {
@@ -37,7 +34,7 @@ func New(parent *gtk.Window, initial string, onSave func(string) error) *Editor 
 	content.SetMarginStart(18)
 	content.SetMarginEnd(18)
 
-	note := gtk.NewLabel(locale.Get("For synced lyrics, keep each [mm:ss.xxx] timestamp at the start of its line."))
+	note := gtk.NewLabel(locale.Get("Synced lyrics use LRC timestamps, such as [01:23.45]. Multiple timestamps may precede one lyric."))
 	note.SetWrap(true)
 	note.SetHAlign(gtk.AlignStart)
 	content.Append(note)
@@ -48,25 +45,10 @@ func New(parent *gtk.Window, initial string, onSave func(string) error) *Editor 
 	editor.text.SetHExpand(true)
 	editor.text.Buffer().SetText(initial)
 
-	editor.lineNumbers = gtk.NewLabel("")
-	editor.lineNumbers.SetJustify(gtk.JustifyRight)
-	editor.lineNumbers.SetHAlign(gtk.AlignFill)
-	editor.lineNumbers.SetVAlign(gtk.AlignStart)
-	editor.lineNumbers.AddCSSClass("dim-label")
-	editor.lineNumbers.AddCSSClass("monospace")
-
 	editor.errorTag = newErrorTag(editor.text.Buffer(), "chorus-editor-error-text")
-	editor.updateLineNumbers()
 	editor.text.Buffer().ConnectChanged(func() {
 		editor.clearError()
-		editor.updateLineNumbers()
 	})
-
-	lineNumberScroll := gtk.NewScrolledWindow()
-	lineNumberScroll.SetPolicy(gtk.PolicyNever, gtk.PolicyExternal)
-	lineNumberScroll.SetVExpand(true)
-	lineNumberScroll.SetHExpand(false)
-	lineNumberScroll.SetChild(editor.lineNumbers)
 
 	scroll := gtk.NewScrolledWindow()
 	scroll.SetPolicy(gtk.PolicyAutomatic, gtk.PolicyAutomatic)
@@ -77,25 +59,7 @@ func New(parent *gtk.Window, initial string, onSave func(string) error) *Editor 
 	scroll.SetMaxContentHeight(400)
 	scroll.SetPropagateNaturalHeight(true)
 	scroll.SetChild(editor.text)
-
-	gutterAndText := gtk.NewBox(gtk.OrientationHorizontal, 8)
-	gutterAndText.SetHExpand(true)
-	gutterAndText.Append(lineNumberScroll)
-	gutterAndText.Append(scroll)
-	content.Append(gutterAndText)
-
-	lineNumbersAdjustment := lineNumberScroll.VAdjustment()
-	textAdjustment := scroll.VAdjustment()
-	textAdjustment.ConnectValueChanged(func() {
-		if lineNumbersAdjustment.Value() != textAdjustment.Value() {
-			lineNumbersAdjustment.SetValue(textAdjustment.Value())
-		}
-	})
-	lineNumbersAdjustment.ConnectValueChanged(func() {
-		if textAdjustment.Value() != lineNumbersAdjustment.Value() {
-			textAdjustment.SetValue(lineNumbersAdjustment.Value())
-		}
-	})
+	content.Append(scroll)
 
 	editor.error = gtk.NewLabel("")
 	editor.error.SetWrap(true)
@@ -139,21 +103,6 @@ func (editor *Editor) save() {
 		return
 	}
 	editor.window.Close()
-}
-
-func (editor *Editor) updateLineNumbers() {
-	count := editor.text.Buffer().LineCount()
-	digits := len(strconv.Itoa(count))
-	editor.lineNumbers.SetSizeRequest(10+digits*10, -1)
-
-	var numbers strings.Builder
-	for i := 1; i <= count; i++ {
-		if i > 1 {
-			numbers.WriteByte('\n')
-		}
-		numbers.WriteString(strconv.Itoa(i))
-	}
-	editor.lineNumbers.SetText(numbers.String())
 }
 
 func (editor *Editor) highlightLine(line int) {

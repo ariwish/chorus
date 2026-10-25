@@ -2,6 +2,7 @@ package lyrics
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -17,9 +18,6 @@ type EditError struct {
 }
 
 func (e *EditError) Error() string {
-	if e.Line > 0 {
-		return fmt.Sprintf("line %d: %v", e.Line, e.Err)
-	}
 	return e.Err.Error()
 }
 
@@ -101,6 +99,9 @@ func ParseEditedText(text string, level Level, duration time.Duration) (Result, 
 
 	switch level {
 	case LevelNone:
+		if hasEditedTimestamp(text) {
+			return parseEditedSyncedText(text, duration)
+		}
 		lines := strings.Split(text, "\n")
 		result := make([]Line, len(lines))
 		for i, line := range lines {
@@ -117,37 +118,56 @@ func ParseEditedText(text string, level Level, duration time.Duration) (Result, 
 func parseEditedSyncedText(text string, duration time.Duration) (Result, error) {
 	rawLines := strings.Split(text, "\n")
 	lines := make([]Line, 0, len(rawLines))
-	var previous time.Duration
 	hasLyrics := false
 
 	for i, raw := range rawLines {
+		raw = strings.TrimSpace(raw)
 		if raw == "" {
-			return Result{}, editLineError(i+1, "blank synced lines require timestamps")
+			continue
 		}
 		if !strings.HasPrefix(raw, "[") {
-			return Result{}, editLineError(i+1, "synced lines must start with an [mm:ss.xxx] timestamp")
+			return Result{}, editLineError(i+1, "synced lines must start with an LRC timestamp")
 		}
-		close := strings.IndexByte(raw, ']')
-		if close < 0 {
-			return Result{}, editLineError(i+1, "incomplete timestamp")
+
+		var starts []time.Duration
+		for strings.HasPrefix(raw, "[") {
+			close := strings.IndexByte(raw, ']')
+			if close < 0 {
+				return Result{}, editLineError(i+1, "incomplete timestamp or metadata tag")
+			}
+			tag := raw[1:close]
+			if len(starts) == 0 && isLRCMetadataTag(tag) {
+				break
+			}
+			start, ok := ParseLRCTimestamp(tag)
+			if !ok {
+				return Result{}, editLineError(i+1, "invalid LRC timestamp")
+			}
+			starts = append(starts, start)
+			raw = raw[close+1:]
 		}
-		start, ok := parseEditTimestamp(raw[1:close])
-		if !ok {
-			return Result{}, editLineError(i+1, "invalid timestamp")
+		if len(starts) == 0 {
+			if isLRCMetadataLine(raw) {
+				continue
+			}
+			return Result{}, editLineError(i+1, "synced lines must start with an LRC timestamp")
 		}
-		if i > 0 && start < previous {
-			return Result{}, editLineError(i+1, "timestamps must be in chronological order")
+
+		text := strings.TrimSpace(raw)
+		for _, start := range starts {
+			lines = append(lines, Line{Text: text, Start: start})
 		}
-		lines = append(lines, Line{Text: raw[close+1:], Start: start})
-		if strings.TrimSpace(raw[close+1:]) != "" {
+		if strings.TrimSpace(text) != "" {
 			hasLyrics = true
 		}
-		previous = start
 	}
 	if !hasLyrics {
-		return Result{}, fmt.Errorf("lyrics: lyrics cannot be empty")
+		return Result{}, editLineError(1, "lyrics cannot be empty")
 	}
 
+	sort.SliceStable(lines, func(i, j int) bool {
+		return lines[i].Start < lines[j].Start
+	})
 	for i := range lines {
 		if i+1 < len(lines) {
 			lines[i].End = lines[i+1].Start
@@ -160,16 +180,74 @@ func parseEditedSyncedText(text string, duration time.Duration) (Result, error) 
 	return Result{Level: LevelLine, Lines: lines}, nil
 }
 
+func hasEditedTimestamp(text string) bool {
+	for _, raw := range strings.Split(text, "\n") {
+		raw = strings.TrimSpace(raw)
+		if !strings.HasPrefix(raw, "[") {
+			continue
+		}
+		close := strings.IndexByte(raw, ']')
+		tag := raw[1:]
+		if close >= 0 {
+			tag = raw[1:close]
+		}
+		if isLRCMetadataTag(tag) {
+			continue
+		}
+		separator := strings.IndexAny(tag, ":;")
+		if separator > 0 {
+			minutes := tag[:separator]
+			allDigits := true
+			for _, r := range minutes {
+				if r < '0' || r > '9' {
+					allDigits = false
+					break
+				}
+			}
+			if allDigits {
+				return true
+			}
+		}
+		if _, ok := ParseLRCTimestamp(tag); ok {
+			return true
+		}
+	}
+	return false
+}
+
+func isLRCMetadataLine(raw string) bool {
+	if !strings.HasPrefix(raw, "[") {
+		return false
+	}
+	close := strings.IndexByte(raw, ']')
+	return close > 1 && isLRCMetadataTag(raw[1:close])
+}
+
+func isLRCMetadataTag(tag string) bool {
+	key, _, ok := strings.Cut(tag, ":")
+	if !ok || key == "" {
+		return false
+	}
+	for _, r := range key {
+		if !((r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z')) {
+			return false
+		}
+	}
+	return true
+}
+
 func editLineError(line int, message string) error {
 	return &EditError{Line: line, Err: fmt.Errorf("%s", message)}
 }
 
-func parseEditTimestamp(raw string) (time.Duration, bool) {
-	minutePart, secondPart, ok := strings.Cut(raw, ":")
-	if !ok || len(minutePart) < 2 || len(secondPart) != 6 || secondPart[2] != '.' {
+func ParseLRCTimestamp(raw string) (time.Duration, bool) {
+	separator := strings.IndexAny(raw, ":;")
+	if separator < 1 {
 		return 0, false
 	}
-	for _, r := range minutePart + secondPart[:2] + secondPart[3:] {
+	minutePart := raw[:separator]
+	secondPart := raw[separator+1:]
+	for _, r := range minutePart {
 		if r < '0' || r > '9' {
 			return 0, false
 		}
@@ -179,14 +257,30 @@ func parseEditTimestamp(raw string) (time.Duration, bool) {
 		return 0, false
 	}
 
-	secondsPart, fraction := secondPart[:2], secondPart[3:]
+	secondsPart, fractionPart, hasFraction := strings.Cut(secondPart, ".")
+	if !hasFraction {
+		secondsPart, fractionPart, hasFraction = strings.Cut(secondPart, ":")
+	}
+	if len(secondsPart) < 1 || len(secondsPart) > 2 || (hasFraction && (len(fractionPart) < 1 || len(fractionPart) > 3)) {
+		return 0, false
+	}
+	for _, r := range secondsPart + fractionPart {
+		if r < '0' || r > '9' {
+			return 0, false
+		}
+	}
 	seconds, err := strconv.Atoi(secondsPart)
 	if err != nil || seconds < 0 || seconds >= 60 {
 		return 0, false
 	}
-	milliseconds, err := strconv.Atoi(fraction)
-	if err != nil || milliseconds < 0 || milliseconds >= 1000 {
-		return 0, false
+
+	milliseconds := 0
+	if hasFraction {
+		fraction, err := strconv.Atoi(fractionPart + strings.Repeat("0", 3-len(fractionPart)))
+		if err != nil {
+			return 0, false
+		}
+		milliseconds = fraction
 	}
 
 	const maxDuration = int64(^uint64(0) >> 1)
