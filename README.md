@@ -15,8 +15,17 @@
 
 Chorus watches whatever media player is running on your system and shows synced or plain lyrics for the current track, no matter which app you're using[*](#recommended-players).
 
+
+### **NOTE:** this is a fork of [chorus](https://github.com/f1nniboy/chorus) by [f1nniboy](https://github.com/f1nniboy). I created this fork to add features and quality of life improvements tailored for my personal use. With that out of the way, here are some of the features i added:
+
 <p align="center">
-  <img src="data/screenshots/1.png" width="80%" alt="The app showing synced lyrics for 'Never Gonna Give You Up' by Rick Astley over a blurred album art background">
+  Lyrics editor, with LRC timestamps support:
+  <img src="data/screenshots/4.png" width="80%">
+</p>
+
+<p align="center">
+  Japanese to romaji lyrics (can be changed in preferences):
+  <img src="data/screenshots/5.png" width="80%">
 </p>
 
 ## Features
