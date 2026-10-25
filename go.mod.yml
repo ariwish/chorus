@@ -22,11 +22,26 @@
   strip-components: 4
   type: archive
   url: https://proxy.golang.org/github.com/godbus/dbus/v5/@v/v5.1.0.zip
+- dest: vendor/github.com/ikawaha/kagome-dict/ipa
+  sha256: 2149abe37501b1d9685389ed7c50525722c08b1be53d930253dea70f44ba812d
+  strip-components: 4
+  type: archive
+  url: https://proxy.golang.org/github.com/ikawaha/kagome-dict/ipa/@v/v1.2.6.zip
+- dest: vendor/github.com/ikawaha/kagome/v2
+  sha256: abe3650893cae1ba9d8b88d74daf8dbc818c6a0fd94ac1eea18df34dd16a461a
+  strip-components: 4
+  type: archive
+  url: https://proxy.golang.org/github.com/ikawaha/kagome/v2/@v/v2.9.2.zip
 - dest: vendor/github.com/leberKleber/go-mpris
   sha256: 06c6225272393736ccf4384a8196c36b12cca6e90679abcf3c20313d55c1a070
   strip-components: 3
   type: archive
   url: https://proxy.golang.org/github.com/leber!kleber/go-mpris/@v/v0.3.0.zip
+- dest: vendor/github.com/leonelquinteros/gotext
+  sha256: 4c01b94fd68ece10bea56ce49f37de834907ebff69a84b21e4b487511488859f
+  strip-components: 3
+  type: archive
+  url: https://proxy.golang.org/github.com/leonelquinteros/gotext/@v/v1.7.2.zip
 - dest: vendor/golang.org/x/image
   sha256: ccb7fe13e4cc254340fa6c8f077bbf5754a2ff03fab7f9b91c08b7a7199e757a
   strip-components: 3
@@ -37,11 +52,11 @@
   strip-components: 3
   type: archive
   url: https://proxy.golang.org/github.com/!karpeles!lab/weak/@v/v0.1.1.zip
-- dest: vendor/github.com/leonelquinteros/gotext
-  sha256: 4c01b94fd68ece10bea56ce49f37de834907ebff69a84b21e4b487511488859f
+- dest: vendor/github.com/ikawaha/kagome-dict
+  sha256: 838e23725d9948249fbf6b7c43f35bdf73fda0ffb501ae6012c650f420503957
   strip-components: 3
   type: archive
-  url: https://proxy.golang.org/github.com/leonelquinteros/gotext/@v/v1.7.2.zip
+  url: https://proxy.golang.org/github.com/ikawaha/kagome-dict/@v/v1.1.7.zip
 - dest: vendor/go4.org/unsafe/assume-no-moving-gc
   sha256: e9f5fa7ec7ae45153c6cb5b0c21e813860f9a4370b35ed1ab27398ba365dbb43
   strip-components: 3

@@ -86,6 +86,17 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
+		updateRomaji := func() {
+			if err := win.Lyrics.SetRomaji(cfg.Boolean("romaji")); err != nil {
+				slog.Error("lyrics: cannot initialize romaji", "err", err)
+			}
+		}
+		updateRomaji()
+		cfg.ConnectChanged(func(key string) {
+			if key == "romaji" {
+				updateRomaji()
+			}
+		})
 
 		refetchAction := gio.NewSimpleAction("refetch-lyrics", nil)
 		refetchAction.SetEnabled(false)
@@ -120,6 +131,17 @@ func main() {
 			prefs.Present(win)
 		})
 		app.AddAction(preferencesAction)
+
+		quitAction := gio.NewSimpleAction("quit", nil)
+		quitAction.ConnectActivate(func(_ *glib.Variant) {
+			app.Quit()
+		})
+		app.AddAction(quitAction)
+
+		app.SetAccelsForAction("app.refetch-lyrics", []string{"<Primary>r"})
+		app.SetAccelsForAction("app.edit-lyrics", []string{"<Primary>e"})
+		app.SetAccelsForAction("app.preferences", []string{"<Primary>comma"})
+		app.SetAccelsForAction("app.quit", []string{"<Primary>q"})
 
 		win.Header.Picker.OnSelect(mgr.SelectPlayer)
 		win.Lyrics.OnSeek(controller.SeekTo)
