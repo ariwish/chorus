@@ -72,14 +72,17 @@ Alternatively, download the `.flatpak` for your architecture from the [latest re
 **Requirements**:
 - GTK4
 - libadwaita
+- Go
 
 ```sh
 git clone https://github.com/f1nniboy/chorus
 cd chorus
-glib-compile-schemas data/
-go build -o chorus ./cmd/chorus
-GSETTINGS_SCHEMA_DIR=data ./chorus
+./scripts/install-user.sh
 ```
+
+This installs Chorus for the current user, including its launcher, icons, and
+GSettings schema. Search for **Chorus** in your app grid to launch it. To remove
+the installation, run `./scripts/install-user.sh --uninstall`.
 
 ## Translate
 
