@@ -2,6 +2,7 @@ package lyricsview
 
 import (
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
@@ -29,7 +30,11 @@ func (view *View) buildLines(res lyrics.Result, duration time.Duration) []line {
 		if l.Start-prevEnd >= instrumentalGapThreshold {
 			out = view.appendLine(out, kindInstrumental, "", prevEnd, l.Start)
 		}
-		out = view.appendLine(out, kindSyncedLine, view.displayText(l.Text), l.Start, l.End)
+		kind, text := kindSyncedLine, view.displayText(l.Text)
+		if strings.TrimSpace(l.Text) == "" {
+			kind, text = kindInstrumental, ""
+		}
+		out = view.appendLine(out, kind, text, l.Start, l.End)
 		prevEnd = l.End
 	}
 
