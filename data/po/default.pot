@@ -8,11 +8,11 @@ msgstr ""
 msgid "About"
 msgstr ""
 
-#: ui/settings/settings.go:39
+#: ui/settings/settings.go:40
 msgid "Appearance"
 msgstr ""
 
-#: ui/settings/settings.go:61
+#: ui/settings/settings.go:67
 msgid "Background"
 msgstr ""
 
@@ -20,11 +20,11 @@ msgstr ""
 msgid "Base URL"
 msgstr ""
 
-#: ui/settings/settings.go:57 ui/settings/settings.go:64
+#: ui/settings/settings.go:58 ui/settings/settings.go:70
 msgid "Blur"
 msgstr ""
 
-#: ui/lyricseditor/editor.go:56
+#: ui/lyricseditor/editor.go:73
 msgid "Cancel"
 msgstr ""
 
@@ -36,47 +36,47 @@ msgstr ""
 msgid "Configuration"
 msgstr ""
 
-#: ui/lyricsview/view.go:152
+#: ui/lyricsview/view.go:160
 msgid "Couldn't fetch lyrics"
 msgstr ""
 
-#: ui/header/header.go:29 ui/lyricseditor/editor.go:18
+#: ui/settings/settings.go:62
+msgid "Display Japanese lyrics in Latin characters"
+msgstr ""
+
+#: ui/header/header.go:29 ui/lyricseditor/editor.go:23
 msgid "Edit Lyrics"
 msgstr ""
 
-#: ui/lyricseditor/editor.go:31
-msgid "For synced lyrics, keep each [mm:ss.xxx] timestamp at the start of its line."
-msgstr ""
-
-#: ui/lyricsview/view.go:150
+#: ui/lyricsview/view.go:158
 msgid "No lyrics"
 msgstr ""
 
-#: ui/lyricsview/view.go:137
+#: ui/lyricsview/view.go:143
 msgid "Nothing playing"
 msgstr ""
 
-#: ui/settings/settings.go:65
+#: ui/settings/settings.go:71
 msgid "Opacity"
 msgstr ""
 
-#: ui/settings/settings.go:58
+#: ui/settings/settings.go:59
 msgid "Padding"
 msgstr ""
 
-#: ui/lyricsview/view.go:137
+#: ui/lyricsview/view.go:143
 msgid "Play something and lyrics will show up here."
 msgstr ""
 
-#: ui/header/header.go:30 ui/settings/settings.go:36
+#: ui/header/header.go:30 ui/settings/settings.go:37
 msgid "Preferences"
 msgstr ""
 
-#: ui/settings/settings.go:68
+#: ui/settings/settings.go:74
 msgid "Preview"
 msgstr ""
 
-#: ui/settings/provider.go:24 ui/settings/settings.go:45
+#: ui/settings/provider.go:24 ui/settings/settings.go:46
 msgid "Provider"
 msgstr ""
 
@@ -84,14 +84,22 @@ msgstr ""
 msgid "Refetch Lyrics"
 msgstr ""
 
-#: ui/lyricseditor/editor.go:60
+#: ui/settings/settings.go:61
+msgid "Romaji"
+msgstr ""
+
+#: ui/lyricseditor/editor.go:77
 msgid "Save"
 msgstr ""
 
-#: ui/settings/settings.go:56
+#: ui/settings/settings.go:57
 msgid "Size"
 msgstr ""
 
-#: ui/settings/settings.go:53
+#: ui/lyricseditor/editor.go:37
+msgid "Synced lyrics use LRC timestamps, such as [01:23.45]. Multiple timestamps may precede one lyric."
+msgstr ""
+
+#: ui/settings/settings.go:54
 msgid "Text"
 msgstr ""

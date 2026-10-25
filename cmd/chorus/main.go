@@ -86,6 +86,17 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
+		updateRomaji := func() {
+			if err := win.Lyrics.SetRomaji(cfg.Boolean("romaji")); err != nil {
+				slog.Error("lyrics: cannot initialize romaji", "err", err)
+			}
+		}
+		updateRomaji()
+		cfg.ConnectChanged(func(key string) {
+			if key == "romaji" {
+				updateRomaji()
+			}
+		})
 
 		refetchAction := gio.NewSimpleAction("refetch-lyrics", nil)
 		refetchAction.SetEnabled(false)

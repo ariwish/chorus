@@ -46,6 +46,11 @@ type View struct {
 	changeSignal  coreglib.SignalHandle
 	canSeek       bool
 	preview       bool
+	romaji        bool
+	romanizer     *lyrics.Romanizer
+	result        lyrics.Result
+	playback      mpris.Playback
+	position      time.Duration
 }
 
 func (view *View) MakePreview() {
@@ -133,11 +138,13 @@ func (view *View) showStatus(icon, title, desc string) {
 }
 
 func (view *View) SetIdle() {
+	view.result = lyrics.Result{}
 	view.clear()
 	view.showStatus("audio-x-generic-symbolic", locale.Get("Nothing playing"), locale.Get("Play something and lyrics will show up here."))
 }
 
 func (view *View) SetLoading() {
+	view.result = lyrics.Result{}
 	view.clear()
 	view.showStatus("", "", "")
 	view.status.SetPaintable(adw.NewSpinnerPaintable(view.status))
@@ -145,6 +152,7 @@ func (view *View) SetLoading() {
 
 func (view *View) SetResult(res lyrics.Result, err error, pb mpris.Playback) {
 	if err != nil {
+		view.result = lyrics.Result{}
 		view.clear()
 		if errors.Is(err, lyrics.ErrNotFound) {
 			view.showStatus("dialog-question-symbolic", locale.Get("No lyrics"), "")
@@ -153,6 +161,8 @@ func (view *View) SetResult(res lyrics.Result, err error, pb mpris.Playback) {
 		}
 		return
 	}
+	view.result = res
+	view.playback = pb
 	if res.Instrumental {
 		view.clear()
 		view.showStatus("folder-music-symbolic", "", "")
@@ -161,11 +171,29 @@ func (view *View) SetResult(res lyrics.Result, err error, pb mpris.Playback) {
 	view.setLines(res, pb)
 }
 
+func (view *View) SetRomaji(enabled bool) error {
+	if enabled && view.romanizer == nil {
+		romanizer, err := lyrics.NewRomanizer()
+		if err != nil {
+			return err
+		}
+		view.romanizer = romanizer
+	}
+	view.romaji = enabled
+	if len(view.result.Lines) > 0 && !view.result.Instrumental {
+		playback := view.playback
+		playback.Position = view.position
+		view.setLines(view.result, playback)
+	}
+	return nil
+}
+
 func (view *View) setLines(res lyrics.Result, pb mpris.Playback) {
 	view.clear()
 
 	view.level = res.Level
 	view.canSeek = pb.CanSeek
+	view.position = pb.Position
 	synced := view.level != lyrics.LevelNone
 
 	if !view.preview {
@@ -207,6 +235,7 @@ func (view *View) clear() {
 }
 
 func (view *View) SetPosition(pos time.Duration) {
+	view.position = pos
 	if view.level == lyrics.LevelNone {
 		return
 	}

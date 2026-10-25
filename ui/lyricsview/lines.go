@@ -19,7 +19,7 @@ func (view *View) buildLines(res lyrics.Result, duration time.Duration) []line {
 
 	if res.Level == lyrics.LevelNone {
 		for _, l := range res.Lines {
-			out = append(out, newLineEntry(kindPlainLine, l.Text))
+			out = append(out, newLineEntry(kindPlainLine, view.displayText(l.Text)))
 		}
 		return out
 	}
@@ -29,7 +29,7 @@ func (view *View) buildLines(res lyrics.Result, duration time.Duration) []line {
 		if l.Start-prevEnd >= instrumentalGapThreshold {
 			out = view.appendLine(out, kindInstrumental, "", prevEnd, l.Start)
 		}
-		out = view.appendLine(out, kindSyncedLine, l.Text, l.Start, l.End)
+		out = view.appendLine(out, kindSyncedLine, view.displayText(l.Text), l.Start, l.End)
 		prevEnd = l.End
 	}
 
@@ -38,6 +38,13 @@ func (view *View) buildLines(res lyrics.Result, duration time.Duration) []line {
 	}
 
 	return out
+}
+
+func (view *View) displayText(text string) string {
+	if view.romaji && view.romanizer != nil {
+		return view.romanizer.Romanize(text)
+	}
+	return text
 }
 
 func (view *View) appendLine(out []line, kind lineKind, text string, start, end time.Duration) []line {

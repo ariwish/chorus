@@ -9,6 +9,8 @@ require (
 	github.com/diamondburned/gotk4-adwaita/pkg v0.0.0-00010101000000-000000000000
 	github.com/diamondburned/gotk4/pkg v0.3.2-0.20250703063411-16654385f59a
 	github.com/godbus/dbus/v5 v5.1.0
+	github.com/ikawaha/kagome-dict/ipa v1.2.6
+	github.com/ikawaha/kagome/v2 v2.9.2
 	github.com/leberKleber/go-mpris v0.3.0
 	github.com/leonelquinteros/gotext v1.7.2
 	golang.org/x/image v0.44.0
@@ -16,6 +18,7 @@ require (
 
 require (
 	github.com/KarpelesLab/weak v0.1.1 // indirect
+	github.com/ikawaha/kagome-dict v1.1.7 // indirect
 	go4.org/unsafe/assume-no-moving-gc v0.0.0-20231121144256-b99613f794b6 // indirect
 	golang.org/x/sync v0.12.0 // indirect
 )

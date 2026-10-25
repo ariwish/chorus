@@ -4,6 +4,7 @@ import (
 	"math"
 
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
+	coreglib "github.com/diamondburned/gotk4/pkg/core/glib"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 
@@ -56,6 +57,11 @@ func (s *Settings) buildAppearancePage(page *adw.PreferencesPage) {
 	s.addScaleRow(textGroup, locale.Get("Size"), "font-select-symbolic", "lyrics-size", scaleSpec{0.5, 2, 0.05, 1})
 	s.addScaleRow(textGroup, locale.Get("Blur"), "weather-fog-symbolic", "lyrics-blur", scaleSpec{0, 1, 0.05, 0.35})
 	s.addScaleRow(textGroup, locale.Get("Padding"), "format-justify-fill-symbolic", "lyrics-padding", scaleSpec{0, 1.5, 0.1, 0.5})
+	romajiRow := adw.NewSwitchRow()
+	romajiRow.SetTitle(locale.Get("Romaji"))
+	romajiRow.SetSubtitle(locale.Get("Display Japanese lyrics in Latin characters"))
+	s.cfg.Bind("romaji", coreglib.BaseObject(romajiRow), "active", gio.SettingsBindDefault)
+	textGroup.Add(romajiRow)
 
 	bgGroup := adw.NewPreferencesGroup()
 	bgGroup.SetTitle(locale.Get("Background"))
